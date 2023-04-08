@@ -8,6 +8,16 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+
+#define SF_MAGIC 'Y'
+#define SF_MIN_VERSION 14
+#define SF_MAX_VERSION 124
+#define SF_MIN_SECT_NR 4
+#define SF_MAX_SECT_NR 20
+#define SF_SECT_TYPE_TEXT 4
+#define SF_SECT_TYPE_DATA 16
+
+
 typedef struct {
     char magic;
     uint16_t header_size;
@@ -17,16 +27,13 @@ typedef struct {
 
 
 typedef struct {
-    char sect_name[7];
+    char sect_name[8];
     uint8_t sect_type;
     uint32_t sect_offset;
     uint32_t sect_size;
 } SectionHeader;
 
-typedef struct {
-    SFHeader header;
-    SectionHeader *section_headers;
-} SFFile;
+
 
 bool ends_with(const char *str, const char *suffix) {
     if (!str || !suffix) {
@@ -76,7 +83,7 @@ void list_directory(const char *dir_path, int recursive, const char *name_ends_w
                         if (size_greater_suffix && !ends_with(full_path, size_greater_suffix)) {
                             continue;
                         }
-                        
+
                         printf("%s\n",full_path);
                     }
                 } else if (S_ISREG(st.st_mode)) {
@@ -102,46 +109,201 @@ void list_directory(const char *dir_path, int recursive, const char *name_ends_w
 }
 
 
+
+void print_invalid_sf_file(const char* reason) {
+    printf("ERROR\n%s\n", reason);
+}
+
+void print_sf_file(SFHeader* header, SectionHeader* sections) {
+    printf("SUCCESS\nversion=%d\nnr_sections=%d\n", header->version, header->no_of_sections);
+    for (int i = 0; i < header->no_of_sections; i++) {
+        printf("section%d: %s %d %d\n", i+1, sections[i].sect_name, sections[i].sect_type, sections[i].sect_size);
+    }
+}
+void parse(const char *file_path) {
+    int fd = -1;
+    fd = open(file_path, O_RDONLY);
+
+    if (fd == -1) {
+        perror("ERROR");
+        return;
+    }
+    SFHeader header;
+    ssize_t num_bytes_read = read(fd, &header, sizeof(header));
+    if (num_bytes_read != sizeof(header)) {
+        print_invalid_sf_file("failed to read SF header");
+        close(fd);
+        return;
+    }
+    lseek(fd, 0, SEEK_SET);
+     read(fd, &header.magic, sizeof(header.magic));
+     read(fd, &header.header_size, sizeof(header.header_size));
+     read(fd, &header.version, sizeof(header.version));
+    read(fd, &header.no_of_sections, sizeof(header.no_of_sections));
+
+//    printf("%c\n",header.magic);
+//    printf("%d\n",header.version);
+//    printf("%d\n",header.no_of_sections);
+//    printf("%d\n",header.header_size);
+
+
+
+    if (header.magic != SF_MAGIC) {
+        print_invalid_sf_file("wrong magic");
+        close(fd);
+        return;
+    }
+
+    if (header.version < SF_MIN_VERSION || header.version > SF_MAX_VERSION) {
+        //printf("pricina: %d\n", header.version);
+        print_invalid_sf_file("wrong version");
+        close(fd);
+        return;
+    }
+
+    if (header.no_of_sections < SF_MIN_SECT_NR || header.no_of_sections > SF_MAX_SECT_NR) {
+        print_invalid_sf_file("wrong sect_nr");
+        close(fd);
+        return;
+    }
+
+    SectionHeader *section_headers = malloc(header.no_of_sections * sizeof(SectionHeader));
+    if (!section_headers) {
+        perror("Failed to allocate memory for section headers");
+        close(fd);
+        return;
+    }
+    //int var = sizeof(section_headers->sect_name) + sizeof (section_headers->sect_type) + sizeof(section_headers->sect_offset) + sizeof(section_headers->sect_size);
+    num_bytes_read = read(fd, section_headers, header.no_of_sections * 16);
+    if (num_bytes_read != header.no_of_sections * 16) {
+        print_invalid_sf_file("failed to read section headers");
+        free(section_headers);
+        close(fd);
+        return;
+    }
+    lseek(fd,-num_bytes_read, SEEK_CUR);
+    for (int i = 0; i < header.no_of_sections; i++) {
+        //vii cu citire in sect type
+
+        ssize_t num_bytes_read = read(fd, section_headers[i].sect_name, 7/*sizeof(section_headers[i].sect_name)*/);
+        section_headers[i].sect_name[7] = 0;
+        if (num_bytes_read != 7) {
+            print_invalid_sf_file("failed to read SECT_NAME field");
+            free(section_headers);
+            close(fd);
+            return;
+        }
+        printf("NAME: %s \n",section_headers[i].sect_name);
+
+        num_bytes_read = read(fd, &section_headers[i].sect_type, sizeof(section_headers[i].sect_type));
+        if (num_bytes_read != sizeof(section_headers[i].sect_type)) {
+            print_invalid_sf_file("failed to read SECT_TYPE field");
+            free(section_headers);
+            close(fd);
+            return;
+        }
+        printf("TYPE: %d \n",section_headers[i].sect_type);
+
+
+        if (lseek(fd, sizeof(section_headers[i].sect_offset), SEEK_CUR) == -1) {
+            print_invalid_sf_file("failed to skip SECT_OFFSET field");
+            free(section_headers);
+            close(fd);
+            return;
+        }
+
+        num_bytes_read = read(fd, &section_headers[i].sect_size, sizeof(section_headers[i].sect_size));
+        if (num_bytes_read != sizeof(section_headers[i].sect_size)) {
+            print_invalid_sf_file("failed to read SECT_SIZE field");
+            free(section_headers);
+            close(fd);
+            return;
+        }
+        printf("%d \n",section_headers[i].sect_size);
+
+        if (section_headers[i].sect_type != SF_SECT_TYPE_TEXT && section_headers[i].sect_type != SF_SECT_TYPE_DATA) {
+            print_invalid_sf_file("wrong sect_type");
+            free(section_headers);
+            close(fd);
+            return;
+        }
+
+        if (section_headers[i].sect_type != SF_SECT_TYPE_TEXT && section_headers[i].sect_type != SF_SECT_TYPE_DATA) {
+            print_invalid_sf_file("wrong sect_type");
+            free(section_headers);
+            close(fd);
+            return;
+        }
+
+    }
+    //for
+
+    //print_sf_file(&header, section_headers);
+
+    free(section_headers);
+    close(fd);
+}
+
+
+
+
 int main(int argc, char **argv) {
-    if (argc >= 2) {
-        if (strcmp(argv[1], "variant") == 0) {
-            printf("88528\n");
-        } else if (strcmp(argv[1], "parse") == 0) {
 
-            for (int i = 1; i < argc; i++) {
-                if (strncmp(argv[i], "path=", 5) == 0) {
-
-                }
-            }
-        }}
+    char *dir_path1 = NULL;
     int recursive = 0;
     const char *dir_path = NULL;
     const char *name_ends_with = NULL;
     off_t size_greater = -1;
     const char *size_greater_suffix = NULL;
 
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "recursive") == 0) {
-            recursive = 1;
-        } else if (strncmp(argv[i], "path=", 5) == 0) {
-            dir_path = argv[i] + 5;
-        } else if (strncmp(argv[i], "name_ends_with=", 15) == 0) {
-            name_ends_with= argv[i] + 15;
-        } else if (strncmp(argv[i], "size_greater=", 13) == 0) {
-            size_greater = strtoll(argv[i] + 13, NULL, 10);
-        } else if (strncmp(argv[i], "size_greater_", 14) == 0) {
-            size_greater_suffix = argv[i] + 14;
+
+    if (argc >= 2) {
+        if (strcmp(argv[1], "variant") == 0) {
+            printf("88528\n");
+
+        } else if (strcmp(argv[1], "parse") == 0) {
+            for (int i = 2; i < argc; i++) {
+
+                if (strncmp(argv[i], "path=", 5) == 0) {
+                  //  printf("OK\n");
+                    dir_path1 = argv[i] + 5;
+                    dir_path1[strlen(argv[i])-5] = 0;
+                   // printf("%s\n",argv[i]);
+                }
+                parse(dir_path1);
+
+
+            }
+
+        }else if (strcmp(argv[1], "list") == 0) {
+            for (int i = 1; i < argc; i++) {
+                if (strcmp(argv[i], "recursive") == 0) {
+                    recursive = 1;
+                } else if (strncmp(argv[i], "path=", 5) == 0) {
+                    dir_path = argv[i] + 5;
+                } else if (strncmp(argv[i], "name_ends_with=", 15) == 0) {
+                    name_ends_with= argv[i] + 15;
+                } else if (strncmp(argv[i], "size_greater=", 13) == 0) {
+                    size_greater = strtoll(argv[i] + 13, NULL, 10);
+                } else if (strncmp(argv[i], "size_greater_", 14) == 0) {
+                    size_greater_suffix = argv[i] + 14;
+                }
+            }
+
+            if (!dir_path) {
+                fprintf(stderr, "ERROR\nmissing directory path\n");
+                return 1;
+            }
+
+
+            printf("SUCCESS\n");
+            list_directory(dir_path, recursive, name_ends_with, size_greater, size_greater_suffix);
+
+
+
         }
+
     }
-
-    if (!dir_path) {
-        fprintf(stderr, "ERROR\nmissing directory path\n");
-        return 1;
-    }
-
-
-    printf("SUCCESS\n");
-    list_directory(dir_path, recursive, name_ends_with, size_greater, size_greater_suffix);
 
     return 0;
 }
