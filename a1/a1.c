@@ -14,7 +14,7 @@
 #define SF_MAX_VERSION 124
 #define SF_MIN_SECT_NR 4
 #define SF_MAX_SECT_NR 20
-#define SF_SECT_TYPE_TEXT 4
+#define SF_SECT_TYPE_TEXT 45
 #define SF_SECT_TYPE_DATA 16
 
 
@@ -124,27 +124,28 @@ void parse(const char *file_path) {
     int fd = -1;
     fd = open(file_path, O_RDONLY);
 
-    if (fd == -1) {
-        perror("ERROR");
-        return;
-    }
+  //  if (fd == -1) {
+       // perror("ERROR");
+        //return;
+    //}
     SFHeader header;
     ssize_t num_bytes_read = read(fd, &header, sizeof(header));
+
     if (num_bytes_read != sizeof(header)) {
         print_invalid_sf_file("failed to read SF header");
         close(fd);
         return;
     }
     lseek(fd, 0, SEEK_SET);
-     read(fd, &header.magic, sizeof(header.magic));
-     read(fd, &header.header_size, sizeof(header.header_size));
-     read(fd, &header.version, sizeof(header.version));
+    read(fd, &header.magic, sizeof(header.magic));
+    read(fd, &header.header_size, sizeof(header.header_size));
+    read(fd, &header.version, sizeof(header.version));
     read(fd, &header.no_of_sections, sizeof(header.no_of_sections));
 
-//    printf("%c\n",header.magic);
-//    printf("%d\n",header.version);
-//    printf("%d\n",header.no_of_sections);
-//    printf("%d\n",header.header_size);
+  // printf("%c\n",header.magic);
+   //printf("%d\n",header.version);
+   //printf("%d\n",header.no_of_sections);
+   // printf("%d\n",header.header_size);
 
 
 
@@ -174,8 +175,9 @@ void parse(const char *file_path) {
         return;
     }
     //int var = sizeof(section_headers->sect_name) + sizeof (section_headers->sect_type) + sizeof(section_headers->sect_offset) + sizeof(section_headers->sect_size);
-    num_bytes_read = read(fd, section_headers, header.no_of_sections * 16);
-    if (num_bytes_read != header.no_of_sections * 16) {
+    num_bytes_read = read(fd, section_headers, header.no_of_sections * sizeof(SectionHeader));
+
+    if (num_bytes_read != header.no_of_sections * sizeof(SectionHeader)) {
         print_invalid_sf_file("failed to read section headers");
         free(section_headers);
         close(fd);
@@ -183,17 +185,17 @@ void parse(const char *file_path) {
     }
     lseek(fd,-num_bytes_read, SEEK_CUR);
     for (int i = 0; i < header.no_of_sections; i++) {
-        //vii cu citire in sect type
 
-        ssize_t num_bytes_read = read(fd, section_headers[i].sect_name, 7/*sizeof(section_headers[i].sect_name)*/);
-        section_headers[i].sect_name[7] = 0;
+        memset(section_headers[i].sect_name, 0, sizeof(section_headers[i].sect_name));
+        ssize_t num_bytes_read = read(fd, section_headers[i].sect_name, sizeof(section_headers[i].sect_name) - 1);
+
         if (num_bytes_read != 7) {
             print_invalid_sf_file("failed to read SECT_NAME field");
             free(section_headers);
             close(fd);
             return;
-        }
-        printf("NAME: %s \n",section_headers[i].sect_name);
+        }section_headers[i].sect_name[7] = '\0';
+
 
         num_bytes_read = read(fd, &section_headers[i].sect_type, sizeof(section_headers[i].sect_type));
         if (num_bytes_read != sizeof(section_headers[i].sect_type)) {
@@ -202,7 +204,7 @@ void parse(const char *file_path) {
             close(fd);
             return;
         }
-        printf("TYPE: %d \n",section_headers[i].sect_type);
+
 
 
         if (lseek(fd, sizeof(section_headers[i].sect_offset), SEEK_CUR) == -1) {
@@ -219,10 +221,10 @@ void parse(const char *file_path) {
             close(fd);
             return;
         }
-        printf("%d \n",section_headers[i].sect_size);
+
 
         if (section_headers[i].sect_type != SF_SECT_TYPE_TEXT && section_headers[i].sect_type != SF_SECT_TYPE_DATA) {
-            print_invalid_sf_file("wrong sect_type");
+            print_invalid_sf_file("wrong sect_types");
             free(section_headers);
             close(fd);
             return;
@@ -236,17 +238,12 @@ void parse(const char *file_path) {
         }
 
     }
-    //for
 
-    //print_sf_file(&header, section_headers);
+    print_sf_file(&header, section_headers);
 
     free(section_headers);
     close(fd);
 }
-
-
-
-
 int main(int argc, char **argv) {
 
     char *dir_path1 = NULL;
