@@ -1,0 +1,211 @@
+[1;35mTest 1...[0m
+	[1;31mTIME LIMIT EXCEEDED[0m
+[1;35mTest 2...[0m
+	[1;31mTIME LIMIT EXCEEDED[0m
+[1;35mTest 3...[0m
+	[1;31mTIME LIMIT EXCEEDED[0m
+[1;35mTest 4...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 starts after T7.4
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [2 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+[1;35mTest 5...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [3 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+Total score: 15 / 100
+Assignment grade: 15.00 / 100
+[1;35mTest 1...[0m
+	[1;31mTIME LIMIT EXCEEDED[0m
+[1;35mTest 2...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [3 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+[1;35mTest 3...[0m
+	[1;31mTIME LIMIT EXCEEDED[0m
+[1;35mTest 4...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 starts after T7.4
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [2 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+[1;35mTest 5...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [3 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+Total score: 23 / 100
+Assignment grade: 23.00 / 100
+[1;35mTest 1...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+[1;35mTest 2...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [3 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+[1;35mTest 3...[0m
+	[1;31mTIME LIMIT EXCEEDED[0m
+[1;35mTest 4...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [3 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+[1;35mTest 5...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [3 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+Total score: 34 / 100
+Assignment grade: 34.00 / 100
+[1;35mTest 1...[0m
+	[1;31mTIME LIMIT EXCEEDED[0m
+[1;35mTest 2...[0m
+	[1;31mTIME LIMIT EXCEEDED[0m
+[1;35mTest 3...[0m
+	[1;31mTIME LIMIT EXCEEDED[0m
+[1;35mTest 4...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [3 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+[1;35mTest 5...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [3 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+Total score: 16 / 100
+Assignment grade: 16.00 / 100
+[1;35mTest 1...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [3 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+[1;35mTest 2...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [3 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+[1;35mTest 3...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [3 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+[1;35mTest 4...[0m
+	[1;31mTIME LIMIT EXCEEDED[0m
+[1;35mTest 5...[0m
+	Checking process hierarchy...
+		[1;32mCORRECT        [0m [5 point(s)]
+	Checking threads from the same process...
+		thread T7.2 ends before T7.4
+		[1;33mPARTIAL CORRECT[0m [3 point(s)]
+	Checking threads barrier...
+		missing thread(s) 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 in process 6
+		[1;31mFAIL           [0m [0 point(s)]
+	Checking threads from different processes...
+		missing threads 1 2 3 4 5 in process 2
+		[1;31mFAIL           [0m [0 point(s)]
+Total score: 32 / 100
+Assignment grade: 32.00 / 100
