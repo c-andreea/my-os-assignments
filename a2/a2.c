@@ -1,42 +1,22 @@
-#include <stdio.h>
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <pthread.h>
 #include "a2_helper.h"
 
-pthread_mutex_t t7_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t t7_cond = PTHREAD_COND_INITIALIZER;
-int t7_2_started = 0;
-int t7_4_ended = 0;
+pthread_barrier_t t7_barrier;
 
 void* t7_thread_function(void* arg) {
     int thread_num = *((int*)arg);
 
-    if (thread_num == 2) {
-        pthread_mutex_lock(&t7_mutex);
-        t7_2_started = 1;
-        pthread_cond_signal(&t7_cond);
-        pthread_mutex_unlock(&t7_mutex);
-    }
-
-    if (thread_num == 4) {
-        pthread_mutex_lock(&t7_mutex);
-        while (!t7_2_started) {
-            pthread_cond_wait(&t7_cond, &t7_mutex);
-        }
-        pthread_mutex_unlock(&t7_mutex);
-    }
-
     info(BEGIN, 7, thread_num);
-    info(END, 7, thread_num);
 
-    if (thread_num == 4) {
-        pthread_mutex_lock(&t7_mutex);
-        t7_4_ended = 1;
-        pthread_cond_signal(&t7_cond);
-        pthread_mutex_unlock(&t7_mutex);
+    if (thread_num == 2 || thread_num == 4) {
+        pthread_barrier_wait(&t7_barrier);
     }
+
+    info(END, 7, thread_num);
 
     return NULL;
 }
@@ -65,19 +45,17 @@ void create_process_7() {
     pthread_t threads[5];
     int thread_nums[5] = {1, 2, 3, 4, 5};
 
+    pthread_barrier_init(&t7_barrier, NULL, 2);
+
     for (int i = 0; i < 5; ++i) {
         pthread_create(&threads[i], NULL, t7_thread_function, &thread_nums[i]);
     }
 
-    pthread_mutex_lock(&t7_mutex);
-    while (!t7_4_ended) {
-        pthread_cond_wait(&t7_cond, &t7_mutex);
-    }
-    pthread_mutex_unlock(&t7_mutex);
-
     for (int i = 0; i < 5; ++i) {
         pthread_join(threads[i], NULL);
     }
+
+    pthread_barrier_destroy(&t7_barrier);
 
     info(END, 7, 0);
 }
@@ -121,8 +99,6 @@ void create_process_8() {
 int main(int argc, char** argv) {
     init();
 
-    init();
-
     info(BEGIN, 1, 0);
 
     pid_t p2, p3, p4, p8;
@@ -151,10 +127,10 @@ int main(int argc, char** argv) {
         exit(0);
     }
 
-    wait(NULL);
-    wait(NULL);
-    wait(NULL);
-    wait(NULL);
+    waitpid(p2, NULL, 0);
+    waitpid(p3, NULL, 0);
+    waitpid(p4, NULL, 0);
+    waitpid(p8, NULL, 0);
 
     info(END, 1, 0);
 
