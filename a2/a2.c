@@ -1,22 +1,53 @@
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include "a2_helper.h"
 
 pthread_barrier_t t7_barrier;
+pthread_mutex_t t7_mutex;
+pthread_cond_t t7_2_started_cond, t7_4_ended_cond;
+int t7_2_started = 0, t7_4_ended = 0;
 
 void* t7_thread_function(void* arg) {
     int thread_num = *((int*)arg);
 
+    if (thread_num == 4) {
+        pthread_mutex_lock(&t7_mutex);
+        while (!t7_2_started) {
+            pthread_cond_wait(&t7_2_started_cond, &t7_mutex);
+        }
+        pthread_mutex_unlock(&t7_mutex);
+    }
+
     info(BEGIN, 7, thread_num);
+
+    if (thread_num == 2) {
+        pthread_mutex_lock(&t7_mutex);
+        t7_2_started = 1;
+        pthread_cond_signal(&t7_2_started_cond);
+        pthread_mutex_unlock(&t7_mutex);
+    }
 
     if (thread_num == 2 || thread_num == 4) {
         pthread_barrier_wait(&t7_barrier);
     }
 
     info(END, 7, thread_num);
+
+    if (thread_num == 4) {
+        pthread_mutex_lock(&t7_mutex);
+        t7_4_ended = 1;
+        pthread_cond_signal(&t7_4_ended_cond);
+        pthread_mutex_unlock(&t7_mutex);
+    } else if (thread_num == 2) {
+        pthread_mutex_lock(&t7_mutex);
+        while (!t7_4_ended) {
+            pthread_cond_wait(&t7_4_ended_cond, &t7_mutex);
+        }
+        pthread_mutex_unlock(&t7_mutex);
+    }
 
     return NULL;
 }
@@ -99,6 +130,11 @@ void create_process_8() {
 int main(int argc, char** argv) {
     init();
 
+    pthread_barrier_init(&t7_barrier, NULL, 2);
+    pthread_mutex_init(&t7_mutex, NULL);
+    pthread_cond_init(&t7_2_started_cond, NULL);
+    pthread_cond_init(&t7_4_ended_cond, NULL);
+
     info(BEGIN, 1, 0);
 
     pid_t p2, p3, p4, p8;
@@ -133,6 +169,10 @@ int main(int argc, char** argv) {
     waitpid(p8, NULL, 0);
 
     info(END, 1, 0);
+    pthread_barrier_destroy(&t7_barrier);
+    pthread_mutex_destroy(&t7_mutex);
+    pthread_cond_destroy(&t7_2_started_cond);
+    pthread_cond_destroy(&t7_4_ended_cond);
 
     return 0;
 }
