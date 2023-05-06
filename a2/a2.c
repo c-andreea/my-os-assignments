@@ -5,13 +5,13 @@
 #include <semaphore.h>
 #include "a2_helper.h"
 
-
 pthread_barrier_t t7_barrier;
 pthread_mutex_t t7_mutex;
 pthread_cond_t t7_2_4_cond;
 int t7_2_started = 0, t7_4_ended = 0;
+
 void* t7_thread_function(void* arg) {
-    int thread_num = *((int*)arg);
+    int thread_num = *((int *) arg);
 
     pthread_mutex_lock(&t7_mutex);
     if (thread_num == 4 && !t7_2_started) {
@@ -19,7 +19,6 @@ void* t7_thread_function(void* arg) {
     }
 
     info(BEGIN, 7, thread_num);
-
     if (thread_num == 2) {
         t7_2_started = 1;
         pthread_cond_signal(&t7_2_4_cond);
@@ -47,7 +46,6 @@ void* t7_thread_function(void* arg) {
 }
 void create_process_7() {
     info(BEGIN, 7, 0);
-
     pthread_t threads[5];
     int thread_nums[5] = {1, 2, 3, 4, 5};
 
@@ -65,6 +63,7 @@ void create_process_7() {
 
     info(END, 7, 0);
 }
+
 void create_process_5() {
     info(BEGIN, 5, 0);
     info(END, 5, 0);
@@ -83,63 +82,54 @@ void create_process_4() {
     info(END, 4, 0);
 }
 sem_t p6_semaphore;
-pthread_barrier_t p6_barrier;
+//pthread_barrier_t p6_barrier;
 pthread_mutex_t p6_mutex;
 pthread_cond_t p6_10_cond;
-int p6_threads_running = 0;
+int p6_threads_ended = 0;
+pthread_cond_t p6_all_threads_ended;
 void* p6_thread_function(void* arg) {
-    int thread_num = *((int*)arg);
+    int thread_num = *((int *) arg);
 
     sem_wait(&p6_semaphore);
-    pthread_mutex_lock(&p6_mutex);
-    p6_threads_running++;
-    if (thread_num == 10 && p6_threads_running == 5) {
-        pthread_cond_signal(&p6_10_cond);
-    } else if (thread_num == 10) {
-        while (p6_threads_running != 5) {
-            pthread_cond_wait(&p6_10_cond, &p6_mutex);
-        }
-    }
-    pthread_mutex_unlock(&p6_mutex);
 
     info(BEGIN, 6, thread_num);
     info(END, 6, thread_num);
 
     pthread_mutex_lock(&p6_mutex);
-    p6_threads_running--;
-    if (thread_num == 10) {
-        pthread_cond_broadcast(&p6_10_cond);
+    p6_threads_ended++;
+
+    if (thread_num == 10 && p6_threads_ended < 41) {
+        pthread_cond_wait(&p6_all_threads_ended, &p6_mutex);
+    } else if (thread_num != 10 && p6_threads_ended == 41) {
+        pthread_cond_signal(&p6_all_threads_ended);
     }
+
     pthread_mutex_unlock(&p6_mutex);
 
     sem_post(&p6_semaphore);
-    pthread_barrier_wait(&p6_barrier);
 
     return NULL;
 }
+
 void create_process_6() {
     info(BEGIN, 6, 0);
 
     pthread_t threads[42];
     int thread_nums[42];
-    for (int i = 0; i < 42; ++i){
+    for (int i = 0; i < 42; ++i) {
         thread_nums[i] = i + 1;
     }
 
     sem_init(&p6_semaphore, 0, 5);
-    pthread_barrier_init(&p6_barrier, NULL, 43);
 
     for (int i = 0; i < 42; ++i) {
         pthread_create(&threads[i], NULL, p6_thread_function, &thread_nums[i]);
     }
 
-    pthread_barrier_wait(&p6_barrier);
-
     for (int i = 0; i < 42; ++i) {
         pthread_join(threads[i], NULL);
     }
 
-    pthread_barrier_destroy(&p6_barrier);
     sem_destroy(&p6_semaphore);
 
     // Adding process 7 as a child of process 6
@@ -152,19 +142,54 @@ void create_process_6() {
 
     info(END, 6, 0);
 }
+pthread_mutex_t p2_mutex;
+pthread_cond_t p2_cond;
 
+void* p2_thread_function(void* arg) {
+    int thread_num = *((int *) arg);
+
+    info(BEGIN, 2, thread_num);
+    info(END, 2, thread_num);
+
+    pthread_mutex_lock(&p2_mutex);
+    if (thread_num == 1) {
+        pthread_cond_signal(&p2_cond);
+    }
+    pthread_mutex_unlock(&p2_mutex);
+
+    return NULL;
+}
 void create_process_2() {
     info(BEGIN, 2, 0);
+
+    pthread_t threads[5];
+    int thread_nums[5] = {1, 2, 3, 4, 5};
+
+    pthread_mutex_init(&p2_mutex, NULL);
+    pthread_cond_init(&p2_cond, NULL);
+
+    for (int i = 0; i < 5; ++i) {
+        pthread_create(&threads[i], NULL, p2_thread_function, &thread_nums[i]);
+    }
+
+    pthread_mutex_lock(&p2_mutex);
+    pthread_cond_wait(&p2_cond, &p2_mutex);
+    pthread_mutex_unlock(&p2_mutex);
 
     pid_t p6 = fork();
     if (p6 == 0) {
         create_process_6();
         exit(0);
     }
+    pthread_join(threads[0], NULL);
+
+    pthread_mutex_destroy(&p2_mutex);
+    pthread_cond_destroy(&p2_cond);
 
     wait(NULL);
     info(END, 2, 0);
 }
+
 
 void create_process_3() {
     info(BEGIN, 3, 0);
@@ -218,14 +243,17 @@ int main(int argc, char** argv) {
         wait(&status);
     }
 
-    info(END, 1, 0);
+    sem_destroy(&p6_semaphore);
+
+    pthread_mutex_destroy(&p6_mutex);
+    pthread_cond_destroy(&p6_10_cond);
 
     pthread_barrier_destroy(&t7_barrier);
     pthread_mutex_destroy(&t7_mutex);
     pthread_cond_destroy(&t7_2_4_cond);
+    pthread_cond_destroy(&p6_all_threads_ended);
 
-    pthread_mutex_destroy(&p6_mutex);
-    pthread_cond_destroy(&p6_10_cond);
+    info(END, 1, 0);
 
     return 0;
 }
