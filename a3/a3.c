@@ -1,15 +1,28 @@
 #include <stdio.h>
 #include <fcntl.h>
-#include <sys/stat.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <string.h>
-#include <sys/mman.h>
+#include <pthread.h>
 #include <stdint.h>
-#include <dirent.h>
+#include <malloc.h>
 
-#define REQ_PIPE_NAME "REQ PIPE 88528"
-#define RESP_PIPE_NAME "RESP PIPE 88528"
-#define SHM_NAME "/wdrCDJS1"
+#define REQ_PIPE_NAME "REQ_PIPE_88528"
+#define RESP_PIPE_NAME "RESP_PIPE_88528"
+#define MAX_SIZE 256
+#define VARIANT_VALUE 88528
+#define NUM_THREADS 4
+#define QUIT "QUIT"
+#define VARIANT "VARIANT"
+
+#define SF_MAGIC 'Y'
+#define SF_MIN_VERSION 14
+#define SF_MAX_VERSION 124
+#define SF_MIN_SECT_NR 4
+#define SF_MAX_SECT_NR 20
+#define SF_SECT_TYPE_TEXT 45
+#define SF_SECT_TYPE_DATA 16
+
 
 typedef struct {
     char magic;
@@ -18,6 +31,7 @@ typedef struct {
     uint8_t no_of_sections;
 } SFHeader;
 
+
 typedef struct {
     char sect_name[8];
     uint8_t sect_type;
@@ -25,191 +39,188 @@ typedef struct {
     uint32_t sect_size;
 } SectionHeader;
 
-void parse_sf_file(const char* file_path, void* shm_addr, size_t shm_size) {
-    // Open the file
-    int fd = open(file_path, O_RDONLY);
-    if (fd == -1) {
-        perror("ERROR\nCannot open the SF file");
-        return;
+
+
+
+
+
+typedef struct {
+    int request_pipe;
+    int response_pipe;
+} Pipes;
+
+void* handle_request_new(void* arg) {
+    Pipes* pipes = (Pipes*) arg;
+    int request_pipe = pipes->request_pipe;
+    int response_pipe = pipes->response_pipe;
+    char buffer[MAX_SIZE];
+    char response[MAX_SIZE];
+
+    while (1) {
+        memset(buffer, 0, MAX_SIZE);
+        ssize_t readSize = read(request_pipe, buffer, MAX_SIZE);
+        if (readSize < 0) {
+            perror("Error reading from the request pipe");
+            close(request_pipe);
+            close(response_pipe);
+            break;
+        } else if (readSize == 0) {
+            break;
+        }
+
+        // If the command is "ping", respond with "ping" and the variant number
+        if (strcmp(buffer, "ping") == 0) {
+            snprintf(response, MAX_SIZE, "ping %d", VARIANT_VALUE);
+        } else {
+            // for now, just echo the request back as the response
+            snprintf(response, MAX_SIZE, "%s", buffer);
+        }
+
+        if (write(response_pipe, response, strlen(response)) == -1) {
+            perror("Error writing to the response pipe");
+            close(request_pipe);
+            close(response_pipe);
+            break;
+        }
     }
 
-    // Get the size of the file
-    struct stat st;
-    if (fstat(fd, &st) == -1) {
-        perror("ERROR\nCannot get the size of the SF file");
+    return NULL;
+}
+
+void parse(const char *file_path) {
+    int fd = -1;
+    fd = open(file_path, O_RDONLY);
+
+    SFHeader sfHeader;
+
+    ssize_t num_bytes_read = read(fd, &sfHeader, sizeof(SFHeader));
+
+    if (num_bytes_read != sizeof(SFHeader)) {
+        printf("ERROR: Failed to read header");
         close(fd);
         return;
     }
 
-    if (st.st_size > shm_size) {
-        printf("ERROR\nThe SF file is larger than the shared memory size\n");
+    lseek(fd, 0, SEEK_SET);
+
+    read(fd, &(sfHeader.magic), 1);
+    if (sfHeader.magic != SF_MAGIC) {
+        printf("ERROR\nwrong magic\n");
         close(fd);
         return;
     }
 
-    // Read the file into the shared memory
-    ssize_t bytesRead = read(fd, shm_addr, st.st_size);
-    if (bytesRead == -1) {
-        perror("ERROR\nFailed to read the SF file");
-    } else if (bytesRead < st.st_size) {
-        printf("WARNING\nIncomplete read of the SF file\n");
+    read(fd, &(sfHeader.header_size), sizeof(sfHeader.header_size));
+    read(fd, &(sfHeader.version), sizeof(sfHeader.version));
+    read(fd, &(sfHeader.no_of_sections), sizeof(sfHeader.no_of_sections));
+
+    if (sfHeader.version < SF_MIN_VERSION || sfHeader.version > SF_MAX_VERSION) {
+        printf("ERROR\nwrong version\n");
+        close(fd);
+        return;
     }
 
+    if (sfHeader.no_of_sections < SF_MIN_SECT_NR || sfHeader.no_of_sections > SF_MAX_SECT_NR) {
+        printf("ERROR\nwrong sect_nr\n");
+        close(fd);
+        return;
+    }
+
+    SectionHeader *section_headers = malloc(sfHeader.no_of_sections * sizeof(SectionHeader));
+    if (!section_headers) {
+        perror("ERROR: Failed to allocate memory for section headers");
+        close(fd);
+        return;
+    }
+
+    for (int i = 0; i < sfHeader.no_of_sections; i++) {
+        read(fd, section_headers[i].sect_name, sizeof(section_headers[i].sect_name) - 1);
+        section_headers[i].sect_name[sizeof(section_headers[i].sect_name) - 1] = '\0';
+
+        read(fd, &(section_headers[i].sect_type), sizeof(section_headers[i].sect_type));
+        if (section_headers[i].sect_type != SF_SECT_TYPE_TEXT &&
+            section_headers[i].sect_type != SF_SECT_TYPE_DATA) {
+            printf("ERROR\nwrong sect_types\n");
+            printf("sect_types: %d\n", section_headers[i].sect_type);
+            close(fd);
+            free(section_headers);
+            return;
+        }
+
+        read(fd, &(section_headers[i].sect_offset), sizeof(section_headers[i].sect_offset));
+        read(fd, &(section_headers[i].sect_size), sizeof(section_headers[i].sect_size));
+    }
+
+    // print_sf_file(&sfHeader, section_headers);
+
+    free(section_headers);
     close(fd);
 }
 
+
+
 int main() {
-    int req_pipe, resp_pipe;
+    int request_pipe;
 
     if (mkfifo(RESP_PIPE_NAME, 0666) == -1) {
         perror("ERROR\nCannot create the response pipe");
         return 1;
     }
 
-    if ((req_pipe = open(REQ_PIPE_NAME, O_RDONLY)) == -1) {
-        perror("ERROR\nCannot open the request pipe");
+    request_pipe = open(REQ_PIPE_NAME, O_RDONLY);
+    if (request_pipe == -1) {
+        perror("ERROR\ncannot open the request pipe");
+        unlink(RESP_PIPE_NAME);
         return 1;
     }
 
-    if ((resp_pipe = open(RESP_PIPE_NAME, O_WRONLY)) == -1) {
-        perror("ERROR\nCannot open the response pipe");
+    int response_pipe = open(RESP_PIPE_NAME, O_WRONLY);
+    if (response_pipe == -1) {
+        perror("ERROR\ncannot open the response pipe");
+        close(request_pipe);
+        unlink(RESP_PIPE_NAME);
         return 1;
     }
 
-    const char start_msg[] = "START!";
-    ssize_t bytesWritten = write(resp_pipe, start_msg, strlen(start_msg));
-    if (bytesWritten == -1) {
-        perror("ERROR\nCannot write to the response pipe");
+    // write "START" to response pipe
+    char *message = "START!";
+    if (write(response_pipe, message, strlen(message)) == -1) {
+        perror("Error writing to the response pipe");
+        close(request_pipe);
+        close(response_pipe);
+        unlink(RESP_PIPE_NAME);
         return 1;
-    } else if (bytesWritten < strlen(start_msg)) {
-        printf("WARNING\nIncomplete write to the response pipe\n");
     }
 
     printf("SUCCESS\n");
 
-    while (1) {
-        char req_name[251];
-        unsigned int size;
+    pthread_t thread_ids[NUM_THREADS];
+    Pipes pipes = {request_pipe, response_pipe};
 
-        ssize_t bytesRead;
-        int i = 0;
-        do {
-            bytesRead = read(req_pipe, &req_name[i], 1);
-            if (bytesRead == -1) {
-                perror("ERROR\nFailed to read from request pipe");
-                break;
-            }
-        } while (req_name[i++] != '!' && bytesRead > 0);
-
-        if (bytesRead <= 0) {
-            if (bytesRead == -1) {
-                perror("ERROR\nFailed to read from request pipe");
-            }
-            break;
-        }
-
-        req_name[i - 1] = '\0';
-
-        if (strcmp(req_name, "VARIANT") == 0) {
-            char resp_msg[] = "VARIANT!VALUE!88528!";
-            ssize_t bytesWritten = write(resp_pipe, resp_msg, strlen(resp_msg));
-            if (bytesWritten == -1) {
-                perror("ERROR\nFailed to write to response pipe");
-                break;
-            } else if (bytesWritten < strlen(resp_msg)) {
-                printf("WARNING\nIncomplete write to the response pipe\n");
-                break;
-            }
-        } else if (strcmp(req_name, "CREATE_SHM") == 0) {
-            ssize_t bytesRead = read(req_pipe, &size, sizeof(unsigned int));
-            if (bytesRead != sizeof(unsigned int)) {
-                perror("ERROR\nFailed to read from request pipe");
-                break;
-            }
-
-            int shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0664);
-            if (shm_fd == -1) {
-                char err_msg[] = "CREATE_SHM!ERROR!";
-                ssize_t bytesWritten = write(resp_pipe, err_msg, strlen(err_msg));
-                if (bytesWritten == -1) {
-                    perror("ERROR\nFailed to write to response pipe");
-                }
-                break;
-            }
-
-            if (ftruncate(shm_fd, size) == -1) {
-                char err_msg[] = "CREATE_SHM!ERROR!";
-                ssize_t bytesWritten = write(resp_pipe, err_msg, strlen(err_msg));
-                if (bytesWritten == -1) {
-                    perror("ERROR\nFailed to write to response pipe");
-                }
-                close(shm_fd);
-                shm_unlink(SHM_NAME);
-                break;
-            }
-
-            void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-            if (addr == MAP_FAILED) {
-                char err_msg[] = "CREATE_SHM!ERROR!";
-                ssize_t bytesWritten = write(resp_pipe, err_msg, strlen(err_msg));
-                if (bytesWritten == -1) {
-                    perror("ERROR\nFailed to write to response pipe");
-                }
-                close(shm_fd);
-                shm_unlink(SHM_NAME);
-                break;
-            }
-
-            char success_msg[] = "CREATE_SHM!SUCCESS!";
-            ssize_t bytesWritten = write(resp_pipe, success_msg, strlen(success_msg));
-            if (bytesWritten == -1) {
-                perror("ERROR\nFailed to write to response pipe");
-                break;
-            } else if (bytesWritten < strlen(success_msg)) {
-                printf("WARNING\nIncomplete write to the response pipe\n");
-                break;
-            }
-        } else if (strcmp(req_name, "PARSE_SF") == 0) {
-            // Handle PARSE_SF request
-            // First, read the file path from the pipe
-            char file_path[251];
-            ssize_t bytesRead;
-            int i = 0;
-            do {
-                bytesRead = read(req_pipe, &file_path[i], 1);
-                if (bytesRead == -1) {
-                    perror("ERROR\nFailed to read from request pipe");
-                    break;
-                }
-            } while (file_path[i++] != '!' && bytesRead > 0);
-
-            if (bytesRead <= 0) {
-                if (bytesRead == -1) {
-                    perror("ERROR\nFailed to read from request pipe");
-                }
-                break;
-            }
-
-            file_path[i - 1] = '\0';  // Replace '!' with '\0' to make it a proper C string
-
-            // Now parse the SF file
-            parse_sf_file(file_path, readdir, size);
-
-            char success_msg[] = "PARSE_SF!SUCCESS!";
-            ssize_t bytesWritten = write(resp_pipe, success_msg, strlen(success_msg));
-            if (bytesWritten == -1) {
-                perror("ERROR\nFailed to write to response pipe");
-                break;
-            } else if (bytesWritten < strlen(success_msg)) {
-                printf("WARNING\nIncomplete write to the response pipe\n");
-                break;
-            }
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (pthread_create(&thread_ids[i], NULL, handle_request_new, &pipes) != 0) {
+            perror("Error creating thread");
+            close(request_pipe);
+            close(response_pipe);
+            unlink(RESP_PIPE_NAME);
+            return 1;
         }
     }
 
-    close(req_pipe);
-    close(resp_pipe);
-    unlink(RESP_PIPE_NAME);
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (pthread_join(thread_ids[i], NULL) != 0) {
+            perror("Error joining thread");
+            return 1;
+        }
+    }
+
+    // close the pipes and unlink the response pipe after all threads have finished
+    close(request_pipe);
+    close(response_pipe);
+    if (unlink(RESP_PIPE_NAME) == -1) {
+        perror("Error unlinking the response pipe");
+        return 1;
+    }
 
     return 0;
 }
