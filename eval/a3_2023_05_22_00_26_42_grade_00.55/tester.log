@@ -1,0 +1,202 @@
+Exception in thread shm1:
+Traceback (most recent call last):
+  File "/usr/lib/python3.9/threading.py", line 954, in _bootstrap_inner
+    self.run()
+  File "/hw/tester.py", line 514, in run
+    sc = getattr(self, "test_" + self.name)(self.params)
+  File "/hw/tester.py", line 212, in test_shm1
+    r = self.readString()
+  File "/hw/tester.py", line 148, in readString
+    c = self.fdRes.read(1).decode()
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xf7 in position 0: invalid start byte
+Exception in thread shm_write:
+Traceback (most recent call last):
+  File "/usr/lib/python3.9/threading.py", line 954, in _bootstrap_inner
+    self.run()
+  File "/hw/tester.py", line 514, in run
+    sc = getattr(self, "test_" + self.name)(self.params)
+  File "/hw/tester.py", line 231, in test_shm_write
+    r = self.readString()
+  File "/hw/tester.py", line 148, in readString
+    c = self.fdRes.read(1).decode()
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xf7 in position 0: invalid start byte
+Exception in thread read_section:
+Traceback (most recent call last):
+  File "/usr/lib/python3.9/threading.py", line 954, in _bootstrap_inner
+    self.run()
+  File "/hw/tester.py", line 514, in run
+    sc = getattr(self, "test_" + self.name)(self.params)
+  File "/hw/tester.py", line 368, in test_read_section
+    r = self.readString()
+  File "/hw/tester.py", line 148, in readString
+    c = self.fdRes.read(1).decode()
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xf7 in position 0: invalid start byte
+Exception in thread read_logical:
+Traceback (most recent call last):
+  File "/usr/lib/python3.9/threading.py", line 954, in _bootstrap_inner
+    self.run()
+  File "/hw/tester.py", line 514, in run
+    sc = getattr(self, "test_" + self.name)(self.params)
+  File "/hw/tester.py", line 437, in test_read_logical
+    r = self.readString()
+  File "/hw/tester.py", line 148, in readString
+    c = self.fdRes.read(1).decode()
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xf7 in position 0: invalid start byte
+[1;35mTesting ping...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'VARIANT'
+[TESTER] received string 'VARIANT'
+	[1;31mTIME LIMIT EXCEEDED[0m
+Test score: 0 / 10
+[1;35mTesting shm1...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'CREATE_SHM'
+[TESTER] sending number 1636201
+[TESTER] received string 'CREATE_SHM'
+Test score: 1 / 10
+[1;35mTesting shm_write...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'CREATE_SHM'
+[TESTER] sending number 1636201
+[TESTER] received string 'CREATE_SHM'
+Test score: 1 / 10
+[1;35mTesting map_inexistent...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'MAP_FILE'
+[TESTER] sending string 'test_root/S5YL8r7DDAdB.w4E'
+[TESTER] received string 'MAP_FILE'
+[TESTER] received string 'test_root/S5YL8r7DDAdB.w4E'
+[TESTER] sending string 'EXIT'
+	[1;31mTIME LIMIT EXCEEDED[0m
+Test score: 0 / 5
+[1;35mTesting map1...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'MAP_FILE'
+[TESTER] sending string 'test_root/VYtGc53CoL.lmT'
+[TESTER] received string 'MAP_FILE'
+[TESTER] received string 'test_root/VYtGc53CoL.lmT'
+[TESTER] sending string 'EXIT'
+	[1;31mTIME LIMIT EXCEEDED[0m
+Test score: 0 / 5
+[1;35mTesting read_offset...[0m
+[TESTER] could not open response pipe
+Test score: 0 / 10
+[1;35mTesting read_section...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'CREATE_SHM'
+[TESTER] sending number 1636201
+[TESTER] received string 'CREATE_SHM'
+Test score: 1 / 10
+[1;35mTesting read_logical...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'CREATE_SHM'
+[TESTER] sending number 1636201
+[TESTER] received string 'CREATE_SHM'
+Test score: 1 / 10
+
+Total score: 4 / 70
+Assignment grade: 5.71 / 100
+Exception in thread shm1:
+Traceback (most recent call last):
+  File "/usr/lib/python3.9/threading.py", line 954, in _bootstrap_inner
+    self.run()
+  File "/hw/tester.py", line 514, in run
+    sc = getattr(self, "test_" + self.name)(self.params)
+  File "/hw/tester.py", line 212, in test_shm1
+    r = self.readString()
+  File "/hw/tester.py", line 148, in readString
+    c = self.fdRes.read(1).decode()
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xf7 in position 0: invalid start byte
+Exception in thread shm_write:
+Traceback (most recent call last):
+  File "/usr/lib/python3.9/threading.py", line 954, in _bootstrap_inner
+    self.run()
+  File "/hw/tester.py", line 514, in run
+    sc = getattr(self, "test_" + self.name)(self.params)
+  File "/hw/tester.py", line 231, in test_shm_write
+    r = self.readString()
+  File "/hw/tester.py", line 148, in readString
+    c = self.fdRes.read(1).decode()
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xf7 in position 0: invalid start byte
+Exception in thread map_inexistent:
+Traceback (most recent call last):
+  File "/usr/lib/python3.9/threading.py", line 954, in _bootstrap_inner
+    self.run()
+  File "/hw/tester.py", line 496, in run
+    os.remove(self.data["pipeRes"])
+FileNotFoundError: [Errno 2] No such file or directory: 'RESP_PIPE_88528'
+Exception in thread read_offset:
+Traceback (most recent call last):
+  File "/usr/lib/python3.9/threading.py", line 954, in _bootstrap_inner
+    self.run()
+  File "/hw/tester.py", line 496, in run
+    os.remove(self.data["pipeRes"])
+FileNotFoundError: [Errno 2] No such file or directory: 'RESP_PIPE_88528'
+Exception in thread read_section:
+Traceback (most recent call last):
+  File "/usr/lib/python3.9/threading.py", line 954, in _bootstrap_inner
+    self.run()
+  File "/hw/tester.py", line 514, in run
+    sc = getattr(self, "test_" + self.name)(self.params)
+  File "/hw/tester.py", line 368, in test_read_section
+    r = self.readString()
+  File "/hw/tester.py", line 148, in readString
+    c = self.fdRes.read(1).decode()
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xf7 in position 0: invalid start byte
+Exception in thread read_logical:
+Traceback (most recent call last):
+  File "/usr/lib/python3.9/threading.py", line 954, in _bootstrap_inner
+    self.run()
+  File "/hw/tester.py", line 514, in run
+    sc = getattr(self, "test_" + self.name)(self.params)
+  File "/hw/tester.py", line 437, in test_read_logical
+    r = self.readString()
+  File "/hw/tester.py", line 148, in readString
+    c = self.fdRes.read(1).decode()
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xf7 in position 0: invalid start byte
+[1;35mTesting ping...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'VARIANT'
+[TESTER] received string 'VARIANT'
+	[1;31mTIME LIMIT EXCEEDED[0m
+Test score: 0 / 10
+[1;35mTesting shm1...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'CREATE_SHM'
+[TESTER] sending number 1636201
+[TESTER] received string 'CREATE_SHM'
+Test score: 1 / 10
+[1;35mTesting shm_write...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'CREATE_SHM'
+[TESTER] sending number 1636201
+[TESTER] received string 'CREATE_SHM'
+Test score: 1 / 10
+[1;35mTesting map_inexistent...[0m
+Test score: 0 / 10
+[1;35mTesting map1...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'MAP_FILE'
+[TESTER] sending string 'test_root/VYtGc53CoL.lmT'
+[TESTER] received string 'MAP_FILE'
+[TESTER] received string 'test_root/VYtGc53CoL.lmT'
+[TESTER] sending string 'EXIT'
+	[1;31mTIME LIMIT EXCEEDED[0m
+Test score: 0 / 5
+[1;35mTesting read_offset...[0m
+Test score: 0 / 10
+[1;35mTesting read_section...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'CREATE_SHM'
+[TESTER] sending number 1636201
+[TESTER] received string 'CREATE_SHM'
+Test score: 1 / 10
+[1;35mTesting read_logical...[0m
+[TESTER] received string 'START'
+[TESTER] sending string 'CREATE_SHM'
+[TESTER] sending number 1636201
+[TESTER] received string 'CREATE_SHM'
+Test score: 1 / 10
+
+Total score: 4 / 75
+Assignment grade: 5.33 / 100
