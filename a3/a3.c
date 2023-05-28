@@ -5,7 +5,8 @@
 #include <string.h>
 #include <pthread.h>
 #include <stdint.h>
-#include <malloc.h>
+#include <stdlib.h>
+#include <sys/mman.h>
 
 #define REQ_PIPE_NAME "REQ_PIPE_88528"
 #define RESP_PIPE_NAME "RESP_PIPE_88528"
@@ -23,6 +24,15 @@
 #define SF_SECT_TYPE_TEXT 45
 #define SF_SECT_TYPE_DATA 16
 
+#define SHM_NAME "/wdrCDJS1"
+#define SHM_PERMISSIONS 0664
+#define CREATE_SHM "CREATE_SHM"
+#define SUCCESS "SUCCESS"
+#define ERROR "ERROR"
+#define SECTION_SIZE 256 // replace with actual section size
+
+char buffer[SECTION_SIZE];
+
 
 typedef struct {
     char magic;
@@ -31,7 +41,6 @@ typedef struct {
     uint8_t no_of_sections;
 } SFHeader;
 
-
 typedef struct {
     char sect_name[8];
     uint8_t sect_type;
@@ -39,15 +48,113 @@ typedef struct {
     uint32_t sect_size;
 } SectionHeader;
 
-
-
-
-
-
 typedef struct {
     int request_pipe;
     int response_pipe;
 } Pipes;
+
+int shm_fd;
+void* shm_ptr;
+pthread_t thread_ids[NUM_THREADS];
+void* file_mapped;
+
+
+void parse(void* file_mapped, off_t size) {
+    SFHeader* sfHeader = (SFHeader*)file_mapped;
+
+    if (sfHeader->magic != SF_MAGIC) {
+        printf("ERROR: Wrong magic\n");
+        return;
+    }
+
+    if (sfHeader->version < SF_MIN_VERSION || sfHeader->version > SF_MAX_VERSION) {
+        printf("ERROR: Wrong version\n");
+        return;
+    }
+
+    if (sfHeader->no_of_sections < SF_MIN_SECT_NR || sfHeader->no_of_sections > SF_MAX_SECT_NR) {
+        printf("ERROR: Wrong number of sections\n");
+        return;
+    }
+
+    SectionHeader* section_headers = (SectionHeader*)(file_mapped + sizeof(SFHeader));
+
+    for (int i = 0; i < sfHeader->no_of_sections; i++) {
+        SectionHeader* sh = &section_headers[i];
+
+        sh->sect_name[sizeof(sh->sect_name) - 1] = '\0';
+
+        if (sh->sect_type != SF_SECT_TYPE_TEXT &&
+            sh->sect_type != SF_SECT_TYPE_DATA) {
+            printf("ERROR: Wrong section types\n");
+            printf("section types: %d\n", sh->sect_type);
+            return;
+        }
+    }
+}
+
+int map_file(const char* filename) {
+    // Open the file
+    int fd = open(filename, O_RDONLY);
+    if (fd == -1) {
+        perror("Error opening file for reading");
+        return -1;
+    }
+
+    // Get the size of the file
+    struct stat st;
+    fstat(fd, &st);
+    off_t size = st.st_size;
+
+    // Map the file into memory
+    void* file_mapped = mmap(0, size, PROT_READ, MAP_SHARED, fd, 0);
+    if (file_mapped == MAP_FAILED) {
+        close(fd);
+        perror("Error mmapping the file");
+        return -1;
+    }
+
+    // The file descriptor can be closed after mapping (the mapping is not affected)
+    close(fd);
+
+    // Call the parse function
+    parse(file_mapped, size);
+
+    // Unmap the file after parsing
+    munmap(file_mapped, size);
+
+    return 0;
+}
+
+
+int read_from_file_offset(off_t offset, size_t size) {
+    if (file_mapped == NULL) {
+        printf("File is not mapped yet\n");
+        return -1;
+    }
+
+    // Check if the read operation is within the bounds of the buffer
+    if (size > SECTION_SIZE) {
+        printf("Size is greater than buffer size\n");
+        return -1;
+    }
+
+    // Read 'size' bytes from the file starting at 'offset'
+    memcpy(buffer, file_mapped + offset, size);
+    return 0;
+}
+
+int read_from_file_section(int section_no, off_t offset, size_t size) {
+    // Calculate the offset in the file for the start of the section
+    off_t section_offset = section_no * SECTION_SIZE;
+
+    return read_from_file_offset(section_offset + offset, size);
+}
+
+int read_from_logical_space_offset(off_t logical_offset, size_t size) {
+    // assuming 'logical_offset' is an offset into a memory space that starts from the beginning of the file
+    return read_from_file_offset(logical_offset, size);
+}
 
 void* handle_request_new(void* arg) {
     Pipes* pipes = (Pipes*) arg;
@@ -55,108 +162,92 @@ void* handle_request_new(void* arg) {
     int response_pipe = pipes->response_pipe;
     char buffer[MAX_SIZE];
     char response[MAX_SIZE];
-
+    shm_ptr = NULL;
+    shm_fd = -1;
     while (1) {
         memset(buffer, 0, MAX_SIZE);
         ssize_t readSize = read(request_pipe, buffer, MAX_SIZE);
         if (readSize < 0) {
             perror("Error reading from the request pipe");
-            close(request_pipe);
-            close(response_pipe);
             break;
         } else if (readSize == 0) {
             break;
         }
 
-        // If the command is "ping", respond with "ping" and the variant number
         if (strcmp(buffer, "ping") == 0) {
             snprintf(response, MAX_SIZE, "ping %d", VARIANT_VALUE);
+        } else if (strcmp(buffer, VARIANT) == 0) {
+            // If the received message is "VARIANT", send back "VARIANT VALUE 88528"
+            snprintf(response, MAX_SIZE, "%s %s %d", VARIANT, "VALUE", VARIANT_VALUE);
         } else {
-            // for now, just echo the request back as the response
+            // Handle other requests here
+            // Add logic based on specific request types
             snprintf(response, MAX_SIZE, "%s", buffer);
         }
 
         if (write(response_pipe, response, strlen(response)) == -1) {
             perror("Error writing to the response pipe");
-            close(request_pipe);
-            close(response_pipe);
             break;
+        }
+
+        // Moved the SHM creation outside of the loop and added a break condition to end the thread when SHM is created.
+        if (strncmp(buffer, CREATE_SHM, strlen(CREATE_SHM)) == 0) {
+            // Create a shared memory region
+            int size = atoi(buffer + strlen(CREATE_SHM));
+            shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, SHM_PERMISSIONS);
+            if (write(response_pipe, response, strlen(response)) == -1) {
+                perror("Error writing to the response pipe");
+                break;
+            }
+            if (shm_fd == -1) {
+                snprintf(response, MAX_SIZE, "%s %s", CREATE_SHM, ERROR);
+            } else {
+                if (ftruncate(shm_fd, size) == -1) {
+                    snprintf(response, MAX_SIZE, "%s %s", CREATE_SHM, ERROR);
+                } else {
+                    shm_ptr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+                    if (shm_ptr == MAP_FAILED) {
+                        snprintf(response, MAX_SIZE, "%s %s", CREATE_SHM, ERROR);
+                    } else {
+                        snprintf(response, MAX_SIZE, "%s %s", CREATE_SHM, SUCCESS);
+                        break; // SHM created, exit the loop
+                    }
+
+                    if (strncmp(buffer, "MAP_FILE", strlen("MAP_FILE")) == 0) {
+                        char* filename = buffer + strlen("MAP_FILE") + 1;
+                        int result = map_file(filename);
+                        snprintf(response, MAX_SIZE, "MAP_FILE %s", result ? "SUCCESS" : "ERROR");
+                    } else if (strncmp(buffer, "READ_FROM_FILE_OFFSET", strlen("READ_FROM_FILE_OFFSET")) == 0) {
+                        off_t offset;
+                        size_t size;
+                        sscanf(buffer, "READ_FROM_FILE_OFFSET %ld %zu", &offset, &size);
+                        int result = read_from_file_offset(offset, size);
+                        snprintf(response, MAX_SIZE, "READ_FROM_FILE_OFFSET %s", result ? "SUCCESS" : "ERROR");
+                    } else if (strncmp(buffer, "READ_FROM_FILE_SECTION", strlen("READ_FROM_FILE_SECTION")) == 0) {
+                        int section_no;
+                        off_t offset;
+                        size_t size;
+                        sscanf(buffer, "READ_FROM_FILE_SECTION %d %ld %zu", &section_no, &offset, &size);
+                        int result = read_from_file_section(section_no, offset, size);
+                        snprintf(response, MAX_SIZE, "READ_FROM_FILE_SECTION %s", result ? "SUCCESS" : "ERROR");
+                    } else if (strncmp(buffer, "READ_FROM_LOGICAL_SPACE_OFFSET", strlen("READ_FROM_LOGICAL_SPACE_OFFSET")) == 0) {
+                        off_t logical_offset;
+                        size_t size;
+                        sscanf(buffer, "READ_FROM_LOGICAL_SPACE_OFFSET %ld %zu", &logical_offset, &size);
+                        int result = read_from_logical_space_offset(logical_offset, size);
+                        snprintf(response, MAX_SIZE, "READ_FROM_LOGICAL_SPACE_OFFSET %s", result ? "SUCCESS" : "ERROR");
+                    } else if (strcmp(buffer, "EXIT") == 0) {
+                        break;
+                    }
+
+
+                }
+            }
         }
     }
 
     return NULL;
 }
-
-void parse(const char *file_path) {
-    int fd = -1;
-    fd = open(file_path, O_RDONLY);
-
-    SFHeader sfHeader;
-
-    ssize_t num_bytes_read = read(fd, &sfHeader, sizeof(SFHeader));
-
-    if (num_bytes_read != sizeof(SFHeader)) {
-        printf("ERROR: Failed to read header");
-        close(fd);
-        return;
-    }
-
-    lseek(fd, 0, SEEK_SET);
-
-    read(fd, &(sfHeader.magic), 1);
-    if (sfHeader.magic != SF_MAGIC) {
-        printf("ERROR\nwrong magic\n");
-        close(fd);
-        return;
-    }
-
-    read(fd, &(sfHeader.header_size), sizeof(sfHeader.header_size));
-    read(fd, &(sfHeader.version), sizeof(sfHeader.version));
-    read(fd, &(sfHeader.no_of_sections), sizeof(sfHeader.no_of_sections));
-
-    if (sfHeader.version < SF_MIN_VERSION || sfHeader.version > SF_MAX_VERSION) {
-        printf("ERROR\nwrong version\n");
-        close(fd);
-        return;
-    }
-
-    if (sfHeader.no_of_sections < SF_MIN_SECT_NR || sfHeader.no_of_sections > SF_MAX_SECT_NR) {
-        printf("ERROR\nwrong sect_nr\n");
-        close(fd);
-        return;
-    }
-
-    SectionHeader *section_headers = malloc(sfHeader.no_of_sections * sizeof(SectionHeader));
-    if (!section_headers) {
-        perror("ERROR: Failed to allocate memory for section headers");
-        close(fd);
-        return;
-    }
-
-    for (int i = 0; i < sfHeader.no_of_sections; i++) {
-        read(fd, section_headers[i].sect_name, sizeof(section_headers[i].sect_name) - 1);
-        section_headers[i].sect_name[sizeof(section_headers[i].sect_name) - 1] = '\0';
-
-        read(fd, &(section_headers[i].sect_type), sizeof(section_headers[i].sect_type));
-        if (section_headers[i].sect_type != SF_SECT_TYPE_TEXT &&
-            section_headers[i].sect_type != SF_SECT_TYPE_DATA) {
-            printf("ERROR\nwrong sect_types\n");
-            printf("sect_types: %d\n", section_headers[i].sect_type);
-            close(fd);
-            free(section_headers);
-            return;
-        }
-
-        read(fd, &(section_headers[i].sect_offset), sizeof(section_headers[i].sect_offset));
-        read(fd, &(section_headers[i].sect_size), sizeof(section_headers[i].sect_size));
-    }
-
-    // print_sf_file(&sfHeader, section_headers);
-
-    free(section_headers);
-    close(fd);
-}
-
 
 
 int main() {
@@ -164,12 +255,14 @@ int main() {
 
     if (mkfifo(RESP_PIPE_NAME, 0666) == -1) {
         perror("ERROR\nCannot create the response pipe");
+        printf("ERROR\ncannot create the response pipe\n");
         return 1;
     }
 
     request_pipe = open(REQ_PIPE_NAME, O_RDONLY);
     if (request_pipe == -1) {
         perror("ERROR\ncannot open the request pipe");
+        printf("ERROR\ncannot open the request pipe\n");
         unlink(RESP_PIPE_NAME);
         return 1;
     }
@@ -177,15 +270,16 @@ int main() {
     int response_pipe = open(RESP_PIPE_NAME, O_WRONLY);
     if (response_pipe == -1) {
         perror("ERROR\ncannot open the response pipe");
+        printf("ERROR\ncannot open the response pipe\n");
         close(request_pipe);
         unlink(RESP_PIPE_NAME);
         return 1;
     }
 
-    // write "START" to response pipe
-    char *message = "START!";
+    char* message = "START!";
     if (write(response_pipe, message, strlen(message)) == -1) {
         perror("Error writing to the response pipe");
+        printf("ERROR\n");
         close(request_pipe);
         close(response_pipe);
         unlink(RESP_PIPE_NAME);
@@ -194,19 +288,6 @@ int main() {
 
     printf("SUCCESS\n");
 
-    pthread_t thread_ids[NUM_THREADS];
-    Pipes pipes = {request_pipe, response_pipe};
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (pthread_create(&thread_ids[i], NULL, handle_request_new, &pipes) != 0) {
-            perror("Error creating thread");
-            close(request_pipe);
-            close(response_pipe);
-            unlink(RESP_PIPE_NAME);
-            return 1;
-        }
-    }
-
     for (int i = 0; i < NUM_THREADS; i++) {
         if (pthread_join(thread_ids[i], NULL) != 0) {
             perror("Error joining thread");
@@ -214,13 +295,32 @@ int main() {
         }
     }
 
-    // close the pipes and unlink the response pipe after all threads have finished
-    close(request_pipe);
-    close(response_pipe);
     if (unlink(RESP_PIPE_NAME) == -1) {
         perror("Error unlinking the response pipe");
         return 1;
     }
+
+    if (shm_ptr != NULL) {
+        munmap(shm_ptr, 0);
+    }
+
+    // Close the shared memory
+    if (shm_fd != -1) {
+        close(shm_fd);
+    }
+    close(request_pipe);
+    close(response_pipe);
+
+    if (file_mapped != NULL) {
+        munmap(file_mapped, 0);
+    }
+
+    // Close the shared memory
+    if (shm_fd != -1) {
+        close(shm_fd);
+    }
+    close(request_pipe);
+    close(response_pipe);
 
     return 0;
 }
