@@ -29,7 +29,7 @@
 #define CREATE_SHM "CREATE_SHM"
 #define SUCCESS "SUCCESS"
 #define ERROR "ERROR"
-#define SECTION_SIZE 256 // replace with actual section size
+#define SECTION_SIZE 256
 
 char buffer[SECTION_SIZE];
 
@@ -94,19 +94,19 @@ void parse(void* file_mapped, off_t size) {
 }
 
 int map_file(const char* filename) {
-    // Open the file
+  
     int fd = open(filename, O_RDONLY);
     if (fd == -1) {
         perror("Error opening file for reading");
         return -1;
     }
 
-    // Get the size of the file
+
     struct stat st;
     fstat(fd, &st);
     off_t size = st.st_size;
 
-    // Map the file into memory
+
     void* file_mapped = mmap(0, size, PROT_READ, MAP_SHARED, fd, 0);
     if (file_mapped == MAP_FAILED) {
         close(fd);
@@ -114,13 +114,12 @@ int map_file(const char* filename) {
         return -1;
     }
 
-    // The file descriptor can be closed after mapping (the mapping is not affected)
     close(fd);
 
-    // Call the parse function
+
     parse(file_mapped, size);
 
-    // Unmap the file after parsing
+   
     munmap(file_mapped, size);
 
     return 0;
@@ -133,26 +132,26 @@ int read_from_file_offset(off_t offset, size_t size) {
         return -1;
     }
 
-    // Check if the read operation is within the bounds of the buffer
+   
     if (size > SECTION_SIZE) {
         printf("Size is greater than buffer size\n");
         return -1;
     }
 
-    // Read 'size' bytes from the file starting at 'offset'
+
     memcpy(buffer, file_mapped + offset, size);
     return 0;
 }
 
 int read_from_file_section(int section_no, off_t offset, size_t size) {
-    // Calculate the offset in the file for the start of the section
+
     off_t section_offset = section_no * SECTION_SIZE;
 
     return read_from_file_offset(section_offset + offset, size);
 }
 
 int read_from_logical_space_offset(off_t logical_offset, size_t size) {
-    // assuming 'logical_offset' is an offset into a memory space that starts from the beginning of the file
+
     return read_from_file_offset(logical_offset, size);
 }
 
@@ -177,11 +176,10 @@ void* handle_request_new(void* arg) {
         if (strcmp(buffer, "ping") == 0) {
             snprintf(response, MAX_SIZE, "ping %d", VARIANT_VALUE);
         } else if (strcmp(buffer, VARIANT) == 0) {
-            // If the received message is "VARIANT", send back "VARIANT VALUE 88528"
+
             snprintf(response, MAX_SIZE, "%s %s %d", VARIANT, "VALUE", VARIANT_VALUE);
         } else {
-            // Handle other requests here
-            // Add logic based on specific request types
+          
             snprintf(response, MAX_SIZE, "%s", buffer);
         }
 
@@ -190,9 +188,8 @@ void* handle_request_new(void* arg) {
             break;
         }
 
-        // Moved the SHM creation outside of the loop and added a break condition to end the thread when SHM is created.
         if (strncmp(buffer, CREATE_SHM, strlen(CREATE_SHM)) == 0) {
-            // Create a shared memory region
+      
             int size = atoi(buffer + strlen(CREATE_SHM));
             shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, SHM_PERMISSIONS);
             if (write(response_pipe, response, strlen(response)) == -1) {
@@ -210,7 +207,7 @@ void* handle_request_new(void* arg) {
                         snprintf(response, MAX_SIZE, "%s %s", CREATE_SHM, ERROR);
                     } else {
                         snprintf(response, MAX_SIZE, "%s %s", CREATE_SHM, SUCCESS);
-                        break; // SHM created, exit the loop
+                        break; 
                     }
 
                     if (strncmp(buffer, "MAP_FILE", strlen("MAP_FILE")) == 0) {
@@ -304,7 +301,6 @@ int main() {
         munmap(shm_ptr, 0);
     }
 
-    // Close the shared memory
     if (shm_fd != -1) {
         close(shm_fd);
     }
@@ -315,7 +311,6 @@ int main() {
         munmap(file_mapped, 0);
     }
 
-    // Close the shared memory
     if (shm_fd != -1) {
         close(shm_fd);
     }
